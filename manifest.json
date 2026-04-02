@@ -1,15 +1,18 @@
 {
   "manifest_version": 3,
-  "name": "CopyPaste - 飞书 PRD 文案提取",
+  "name": "文案大师·傅",
   "version": "0.1.0",
   "description": "从飞书文档 PRD 中提取选区文案与配图，并生成可粘贴到飞书的表格。",
   "action": {
-    "default_title": "CopyPaste"
+    "default_title": "文案大师·傅",
+    "default_icon": "icon.svg"
+  },
+  "icons": {
+    "128": "icon.svg"
   },
   "side_panel": {
     "default_path": "sidepanel.html"
   },
-  "options_page": "options.html",
   "permissions": ["activeTab", "scripting", "storage", "clipboardWrite", "clipboardRead", "contextMenus", "sidePanel", "webRequest"],
   "host_permissions": [
     "*://*.feishu.cn/*",

@@ -308,47 +308,45 @@ async function handleClipboardExtract({ html, text, mode, richLines }) {
   // 2. 解析 HTML 中的图片
   const images = [];
   if (html) {
-    // 粗暴的正则匹配找出所有 img src
-    const imgRegex = /<img[^>]+src=["']([^"']+)["']/gi;
-    let match;
     const seen = new Set();
-    while ((match = imgRegex.exec(html)) !== null) {
-      let src = match[1];
-      // 飞书有时在 src 里放占位符，真实链接在 data-src
+    
+    // 粗暴的正则匹配找出所有 img 标签，提取 src 和 data-src
+    const imgTagRegex = /<img([^>]+)>/gi;
+    let match;
+    while ((match = imgTagRegex.exec(html)) !== null) {
+      const imgAttrs = match[1];
+      
+      // 优先取 data-src，因为在飞书复制的 HTML 中 data-src 往往是真实原图，src 可能是低清缩略图或占位图
+      let srcMatch = imgAttrs.match(/data-src=["']([^"']+)["']/i);
+      if (!srcMatch) {
+        srcMatch = imgAttrs.match(/src=["']([^"']+)["']/i);
+      }
+      
+      if (!srcMatch) continue;
+      let src = srcMatch[1];
+      
+      // 飞书有时在 src 里放占位符
       if (src.includes('base64,PHN2Zy')) continue; 
       
       // 去重：飞书剪贴板有时会带相同的 token 但参数略微不同的 URL，通过提取核心 token 来去重
       let dedupeKey = src;
       try {
         const urlObj = new URL(src);
-        // 如果是飞书 drive 图片，提取前面的 path 作为唯一标识 (忽略 fallback_source 等 query 参数)
-        if (urlObj.pathname.includes('/space/api/box/stream/download/')) {
-          dedupeKey = urlObj.pathname;
+        if (urlObj.pathname) {
+          // 获取路径最后一部分作为 token，例如 /space/api/box/stream/download/xxx -> xxx
+          const parts = urlObj.pathname.split('/');
+          const token = parts.pop() || parts.pop(); // 防止最后有斜杠
+          if (token && token.length > 10) {
+            dedupeKey = token;
+          } else {
+            // 如果路径没有长 token，我们直接去掉 query 参数作为去重 key
+            dedupeKey = urlObj.origin + urlObj.pathname;
+          }
         }
       } catch (e) {
         // 如果不是合法 URL，保留原样
       }
       
-      if (!seen.has(dedupeKey)) {
-        seen.add(dedupeKey);
-        images.push({ src, alt: "剪贴板图片" });
-      }
-    }
-    
-    // 如果 img 没抓够，找 data-src
-    const dataSrcRegex = /data-src=["']([^"']+)["']/gi;
-    while ((match = dataSrcRegex.exec(html)) !== null) {
-      let src = match[1];
-      
-      let dedupeKey = src;
-      try {
-        const urlObj = new URL(src);
-        if (urlObj.pathname.includes('/space/api/box/stream/download/')) {
-          dedupeKey = urlObj.pathname;
-        }
-      } catch (e) {
-      }
-
       if (!seen.has(dedupeKey)) {
         seen.add(dedupeKey);
         images.push({ src, alt: "剪贴板图片" });

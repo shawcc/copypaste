@@ -1,0 +1,8 @@
+
+# 忽略打包文件
+*.zip
+package-extension.sh
+
+# 忽略测试文件
+test_*.js
+patch.txt

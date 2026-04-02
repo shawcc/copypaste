@@ -205,3 +205,52 @@ body {
   border-radius: 6px;
   background-color: #f9fafb;
 }
+
+.quiz-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 16px;
+}
+.quiz-card {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
+  padding: 24px;
+  width: 100%;
+  max-width: 400px;
+}
+.quiz-card h3 {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  color: #111827;
+}
+.quiz-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.quiz-opt-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 8px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  transition: all 0.2s;
+  line-height: 1.4;
+}
+.quiz-opt-label:hover {
+  background: #f9fafb;
+}
+.quiz-opt-label input {
+  margin-top: 3px;
+}

@@ -4,13 +4,12 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="stylesheet" href="sidepanel.css" />
-    <title>CopyPaste</title>
+    <title>文案大师·傅</title>
   </head>
   <body>
     <main class="wrap">
       <header class="top">
-        <div class="title">CopyPaste</div>
-        <a class="link" href="options.html" target="_blank" rel="noreferrer">设置</a>
+        <div class="title">文案大师·傅</div>
       </header>
 
       <section class="card">
@@ -28,22 +27,22 @@
             <label class="label" for="featureType" style="width: 70px;">选择特征</label>
             <select id="featureType" class="select" style="flex: 1;">
               <option value="fontColor">字体颜色</option>
-              <option value="bgColor">背景颜色</option>
               <option value="specialStyle">特殊样式</option>
             </select>
           </div>
           <div id="featureOptions" class="feature-options"></div>
         </div>
 
-        <button id="clipboardExtractBtn" class="btn primary">从剪贴板提取 (推荐)</button>
-        <button id="copyBtn" class="btn" disabled>复制为表格（可粘贴到飞书）</button>
+        <button id="clipboardExtractBtn" class="btn primary">第一步：从剪贴板提取 (推荐)</button>
+        <button id="copyBtn" class="btn primary" disabled>第二步：复制为表格（可粘贴到飞书）</button>
         <button id="resetBtn" class="btn danger">重置清空</button>
         <div id="status" class="status"></div>
-        <div class="tip">
-          飞书新版文档提取技巧：<br/>
+        
+        <div class="tip" style="background: #eef2ff; border-left: 4px solid #4f46e5; padding: 12px; margin-top: 16px; border-radius: 4px;">
+          <strong style="color: #4f46e5; display: block; margin-bottom: 6px;">💡 使用说明：</strong>
           1. 在左侧文档中框选你需要的内容。<br/>
           2. 按下 <b>Command+C</b> (或 Ctrl+C) 复制。<br/>
-          3. 点击上方的 <b>“从剪贴板提取”</b> 按钮。
+          3. 点击上方的 <b>“第一步：从剪贴板提取”</b> 按钮。
         </div>
       </section>
 
@@ -56,6 +55,19 @@
         <div id="imagePreview" class="image-preview"></div>
       </section>
     </main>
+
+    <!-- Quiz Overlay -->
+    <div id="quizOverlay" class="quiz-overlay" style="display: none;">
+      <div class="quiz-card">
+        <h3 id="quizTitle">使用前验证 (防滥用)</h3>
+        <p id="quizDesc" style="font-size: 12px; color: #6b7280; margin-bottom: 12px;">回答正确后才能使用提取功能。10分钟内最多3次机会。</p>
+        <div id="quizQuestion" style="font-size: 14px; font-weight: 500; margin-bottom: 12px; line-height: 1.4;"></div>
+        <div id="quizOptions" class="quiz-options"></div>
+        <button id="quizSubmitBtn" class="btn primary" style="margin-top: 12px;" disabled>提交答案</button>
+        <div id="quizStatus" class="status" style="margin-top: 8px;"></div>
+      </div>
+    </div>
+
     <script src="exporter.js"></script>
     <!-- 移除 Tesseract，换用通过 API 接口的 OCR 或更现代的方案。为了最快见效且无需下载几十MB的Wasm，我们这里使用免费的云端/轻量级 API 兜底，或告知用户需要时间加载 -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>

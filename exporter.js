@@ -160,6 +160,8 @@
           r.images && r.images.length
             ? r.images
                 .map((imgObj) => {
+                  // 如果存在 base64，优先使用 base64，因为原图可能带有鉴权参数导致飞书重新抓取失败。
+                  // 如果飞书丢弃了 base64 图片，可以先将其回退为安全的外部链接或原始链接。
                   const finalSrc = imgObj.base64 || imgObj.src || imgObj;
                   const cleanUrl = typeof finalSrc === 'string' ? escapeAttr(finalSrc).replace(/&amp;/g, '&') : finalSrc;
                   // 飞书多维表格（Bitable）和普通表格对于简单 img 标签的兼容性最好
