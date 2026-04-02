@@ -362,16 +362,15 @@ els.copyBtn.addEventListener("click", async () => {
         chrome.storage.sync.get(["ocrApiUrl", "ocrApiModel", "ocrApiKey"], resolve);
       });
       
-      // 内置的默认 API 配置 (请替换为你自己的真实 ep 和 key)
-      const defaultApiUrl = "https://ark.cn-beijing.volces.com/api/v3/chat/completions";
-      const defaultApiModel = "ep-20241029135012-68vmd"; // 示例 ep，你需要换成真实的 Doubao-vision-pro
-      const defaultApiKey = "f9a4b3d7-1234-5678-abcd-ef0123456789"; // 示例 key，你需要换成真实的 key
-
-      const apiUrl = settings.ocrApiUrl || defaultApiUrl;
-      const apiModel = settings.ocrApiModel || defaultApiModel;
-      const apiKey = settings.ocrApiKey || defaultApiKey;
+      // 指向你在 Vercel 上部署的安全代理接口
+      const defaultApiUrl = "https://copypaste-tau.vercel.app/api/ocr";
       
-      const hasLlmConfig = !!(apiUrl && apiModel && apiKey);
+      const apiUrl = settings.ocrApiUrl || defaultApiUrl;
+      const apiModel = settings.ocrApiModel || ""; // 如果用户填了就用用户的，否则留空让代理层去读环境变量
+      const apiKey = settings.ocrApiKey || ""; // 同上
+      
+      // 只要有了 apiUrl，就说明配置好了（使用我们的安全代理）
+      const hasLlmConfig = !!apiUrl;
 
       // 如果启用了 OCR，我们在复制前把图片送去识别
       if ((hasLlmConfig || typeof Tesseract !== 'undefined') && extract.images && extract.images.length > 0) {

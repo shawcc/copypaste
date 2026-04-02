@@ -227,6 +227,36 @@ async function handleLLMOCR({ base64Image, apiUrl, apiModel, apiKey }) {
   // 去除 data:image/png;base64, 前缀
   const base64Data = base64Image.split(',')[1] || base64Image;
   
+  // 如果请求的是我们的 Vercel 代理接口
+  if (apiUrl.includes('vercel.app')) {
+    const payload = {
+      base64Image: base64Data,
+      customApiUrl: "",
+      customApiModel: apiModel, // 可能为空，留空则让 Vercel 去读它的环境变量
+      customApiKey: apiKey      // 同上
+    };
+
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`API Error ${response.status}: ${errText}`);
+    }
+
+    const data = await response.json();
+    if (data.text) {
+      return data.text;
+    }
+    throw new Error(data.error || "Invalid API response format");
+  }
+
+  // 否则，走标准的直接请求大模型 API (用于用户自定义配置的情况)
   const payload = {
     model: apiModel,
     messages: [
