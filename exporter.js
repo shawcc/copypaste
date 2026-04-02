@@ -19,41 +19,79 @@
     return String(n).padStart(3, "0");
   }
 
+  function getSimilarity(s1, s2) {
+    if (!s1 || !s2) return 0;
+    if (s1 === s2) return 1;
+    if (s1.includes(s2)) return s2.length / s1.length;
+    if (s2.includes(s1)) return s1.length / s2.length;
+    
+    // 简单的字符交集比例，应对稍微有点错字或缺字的情况
+    const set1 = new Set(s1.split(''));
+    const set2 = new Set(s2.split(''));
+    let intersection = 0;
+    for (const char of set1) {
+      if (set2.has(char)) intersection++;
+    }
+    return intersection / Math.max(set1.size, set2.size);
+  }
+
   function rowsFromExtract(extract) {
     const lines = Array.isArray(extract?.lines) ? extract.lines : [];
     const images = Array.isArray(extract?.images) ? extract.images : [];
     const rows = [];
-    let imgIndex = 0;
     
-    // 如果没有图片，直接把所有文案列出来
+    // 如果没有图片，把文档里的文案全部列出来（不做过滤，因为没有 OCR 对比依据）
     if (!images || images.length === 0) {
       return lines.map(text => ({ text, images: [], ocrText: "" }));
     }
 
-    // 如果没有文案，只列图片
-    if (!lines || lines.length === 0) {
-      return images.map(img => ({ text: "", images: [img], ocrText: img.ocrText || "" }));
-    }
+    // 复制一份 PRD 里提取到的所有文案，作为匹配池
+    let remainingPrdLines = [...lines];
 
-    // 计算每张图片大致对应几行文案
-    const linesPerImg = Math.ceil(lines.length / images.length);
-
-    for (let i = 0; i < lines.length; i++) {
-      const text = lines[i];
-      // 只有在这张图片的第一行文案时，我们把图片放进去；后续文案的图片列留空，表示属于同一张图
-      const currentImages = (i % linesPerImg === 0 && images[imgIndex]) 
-          ? [images[imgIndex]] 
-          : [];
-      const currentOcr = images[imgIndex] && images[imgIndex].ocrText ? images[imgIndex].ocrText : "";
+    for (let i = 0; i < images.length; i++) {
+      const img = images[i];
+      const ocrTextRaw = img.ocrText || "";
       
-      rows.push({
-        text,
-        images: currentImages,
-        ocrText: currentOcr
-      });
+      // 根据换行符拆分成多条文案
+      const ocrLines = ocrTextRaw.split(/\n+/).map(s => s.trim()).filter(s => s.length > 0);
 
-      if ((i + 1) % linesPerImg === 0 && imgIndex < images.length - 1) {
-        imgIndex++;
+      // 如果这张图没识别出东西，或者 API 失败，就当成一条空行放进去
+      if (ocrLines.length === 0) {
+        rows.push({ text: "", images: [img], ocrText: ocrTextRaw });
+        continue;
+      }
+
+      // 遍历这张图识别出的每一条 OCR 文案
+      for (let j = 0; j < ocrLines.length; j++) {
+        const ocrLine = ocrLines[j];
+        
+        let bestIdx = -1;
+        let bestScore = 0;
+        
+        // 在文档文案池里找最相似的一句
+        for (let k = 0; k < remainingPrdLines.length; k++) {
+          const score = getSimilarity(ocrLine, remainingPrdLines[k]);
+          // 设置一个相似度阈值，大于 0.3 才算及格（比如有一部分字对得上）
+          if (score > bestScore && score > 0.3) {
+            bestScore = score;
+            bestIdx = k;
+          }
+        }
+        
+        let matchedText = "";
+        if (bestIdx !== -1) {
+          matchedText = remainingPrdLines[bestIdx];
+          // 匹配上的文案就从池子里删掉，避免一句话被多张图重复匹配
+          remainingPrdLines.splice(bestIdx, 1);
+        }
+
+        rows.push({
+          // 只有在相似的情况下才填入 PM 写的文案，否则留空让 PM 自己决定
+          text: matchedText,
+          // 只在当前图片的第一条文案里塞入截图，后续的同属一张图的留空
+          images: j === 0 ? [img] : [],
+          ocrText: ocrLine
+        });
       }
     }
     

@@ -1,9 +1,6 @@
 const els = {
-  modeSelect: document.getElementById("modeSelect"),
   clipboardExtractBtn: document.getElementById("clipboardExtractBtn"),
-  extractBtn: document.getElementById("extractBtn"),
   copyBtn: document.getElementById("copyBtn"),
-  scrollBtn: document.getElementById("scrollBtn"),
   resetBtn: document.getElementById("resetBtn"),
   status: document.getElementById("status"),
   lineCount: document.getElementById("lineCount"),
@@ -43,75 +40,7 @@ async function getActiveTab() {
   });
 }
 
-async function extractSelection() {
-  const tab = await getActiveTab();
-  if (!tab || !tab.id) throw new Error("未找到当前标签页");
 
-  const trySend = () =>
-    new Promise((resolve, reject) => {
-      chrome.tabs.sendMessage(tab.id, { type: "CP_EXTRACT_SELECTION" }, (res) => {
-        const err = chrome.runtime.lastError;
-        if (err) reject(new Error(err.message));
-        else resolve(res);
-      });
-    });
-
-  try {
-    return await trySend();
-  } catch (e) {
-    await new Promise((resolve, reject) => {
-      chrome.scripting.executeScript(
-        { target: { tabId: tab.id, allFrames: true }, files: ["content_script.js"] },
-        () => {
-          const err = chrome.runtime.lastError;
-          if (err) reject(new Error(err.message));
-          else resolve();
-        }
-      );
-    });
-    return await trySend();
-  }
-}
-
-async function toggleScrollExtract() {
-  const tab = await getActiveTab();
-  if (!tab || !tab.id) throw new Error("未找到当前标签页");
-
-  const state = await new Promise((resolve, reject) => {
-    chrome.storage.session.get({ scrollState: { running: false } }, (items) => {
-      const err = chrome.runtime.lastError;
-      if (err) reject(new Error(err.message));
-      else resolve(items.scrollState || { running: false });
-    });
-  });
-
-  const nextRunning = !state.running;
-  const message = { type: nextRunning ? "CP_SCROLL_EXTRACT_START" : "CP_SCROLL_EXTRACT_STOP" };
-  const trySend = () =>
-    new Promise((resolve, reject) => {
-      chrome.tabs.sendMessage(tab.id, message, () => {
-        const err = chrome.runtime.lastError;
-        if (err) reject(new Error(err.message));
-        else resolve();
-      });
-    });
-
-  try {
-    await trySend();
-  } catch (e) {
-    await new Promise((resolve, reject) => {
-      chrome.scripting.executeScript(
-        { target: { tabId: tab.id, allFrames: true }, files: ["content_script.js"] },
-        () => {
-          const err = chrome.runtime.lastError;
-          if (err) reject(new Error(err.message));
-          else resolve();
-        }
-      );
-    });
-    await trySend();
-  }
-}
 
 function setPreview(lines) {
   els.preview.replaceChildren();
@@ -148,30 +77,15 @@ function storageSyncSet(items) {
   });
 }
 
-function buildRows(extract, mode) {
-  const rowsFrom = globalThis.CopyPasteExporter.rowsFromExtract(extract || {});
-  const lines = Array.isArray(extract?.lines) ? extract.lines : [];
-  const uiLines = Array.isArray(extract?.uiLines) ? extract.uiLines : [];
-  const images = Array.isArray(extract?.images) ? extract.images : [];
-
-  if (mode === "images") {
-    return images.map((img) => ({ text: "", images: [img.src || img], ocrText: img.ocrText || "" }));
-  }
-
-  const baseRows = rowsFrom.length ? rowsFrom : lines.map((t) => ({ text: t, images: [], ocrText: "" }));
-  const filterLines = mode === "ui" && uiLines.length ? uiLines : lines;
-  if (!filterLines.length) return baseRows;
-
-  const set = new Set(filterLines);
-  const filtered = baseRows.filter((r) => set.has(r.text));
-  return filtered.length ? filtered : baseRows;
+function buildRows(extract) {
+  return globalThis.CopyPasteExporter.rowsFromExtract(extract || {});
 }
 
 async function copyAsTable(extract) {
   const { languages } = await storageSyncGet({ languages: ["en-US"] });
   const langs = Array.isArray(languages) ? languages.filter(Boolean) : ["en-US"];
-  // 总是重新 build rows，确保获取到最新的 img.ocrText
-  const rows = buildRows(extract, extract.mode || "ui");
+  // 总是重新 build rows，这里直接调用 rowsFromExtract，将使用基于 OCR 的智能匹配
+  const rows = buildRows(extract);
   const html = globalThis.CopyPasteExporter.htmlTableFromRows(rows, langs);
   const tsv = globalThis.CopyPasteExporter.tsvFromRows(rows, langs);
 
@@ -237,25 +151,12 @@ function applyExtractToUI(extract) {
 }
 
 async function init() {
-  const { mode } = await storageSyncGet({ mode: "ui" });
-  els.modeSelect.value = mode || "ui";
   const last = await loadLastExtract();
   if (last) applyExtractToUI(last);
-  await refreshScrollState();
 }
 
-async function refreshScrollState() {
-  const state = await new Promise((resolve, reject) => {
-    chrome.storage.session.get({ scrollState: { running: false } }, (items) => {
-      const err = chrome.runtime.lastError;
-      if (err) reject(new Error(err.message));
-      else resolve(items.scrollState || { running: false });
-    });
-  });
-  if (!els.scrollBtn) return;
-  els.scrollBtn.textContent = state.running ? "停止滚动提取" : "开始滚动提取";
-  els.scrollBtn.classList.toggle("danger", state.running);
-}
+// Remove unused functions
+// (extractSelection, toggleScrollExtract, refreshScrollState have been removed)
 
 els.clipboardExtractBtn?.addEventListener("click", async () => {
   setStatus("正在读取剪贴板…");
@@ -282,11 +183,11 @@ els.clipboardExtractBtn?.addEventListener("click", async () => {
     }
 
     // 2. 将提取任务发给 background 处理（利用现有的合并逻辑）
-    const extractMode = els.modeSelect.value || "ui";
-    const res = await chrome.runtime.sendMessage({
-      type: "CP_PROCESS_CLIPBOARD",
-      payload: { html: htmlContent, text: textContent, mode: extractMode }
-    });
+    const extractMode = "ui";
+  const res = await chrome.runtime.sendMessage({
+    type: "CP_PROCESS_CLIPBOARD",
+    payload: { html: htmlContent, text: textContent, mode: extractMode }
+  });
 
     if (!res || !res.ok) {
       throw new Error(res?.error || "处理剪贴板数据失败");
@@ -301,39 +202,7 @@ els.clipboardExtractBtn?.addEventListener("click", async () => {
   }
 });
 
-els.extractBtn.addEventListener("click", async () => {
-  setStatus("提取中…");
-  els.extractBtn.disabled = true;
-  try {
-    const mode = els.modeSelect.value || "ui";
-    await storageSyncSet({ mode });
-    const res = await extractSelection();
-    if (!res || !res.ok) throw new Error(res?.error || "提取失败");
-    const rows = buildRows(res, mode);
-    const payload = { ...res, rows, mode };
-    await saveLastExtract(payload);
-    applyExtractToUI(payload);
-    setStatus("已提取，可复制为表格", "ok");
-  } catch (e) {
-    setStatus(String(e && e.message ? e.message : e), "error");
-  } finally {
-    els.extractBtn.disabled = false;
-  }
-});
 
-els.scrollBtn?.addEventListener("click", async () => {
-  setStatus("切换滚动中…");
-  els.scrollBtn.disabled = true;
-  try {
-    await toggleScrollExtract();
-    await refreshScrollState();
-    setStatus("滚动提取已切换", "ok");
-  } catch (e) {
-    setStatus(String(e && e.message ? e.message : e), "error");
-  } finally {
-    els.scrollBtn.disabled = false;
-  }
-});
 
 els.copyBtn.addEventListener("click", async () => {
   setStatus("复制中… (如果包含 OCR 可能需要几秒钟)");
@@ -397,7 +266,7 @@ els.copyBtn.addEventListener("click", async () => {
                         }
                       });
                       if (res && res.ok && res.text) {
-                         img.ocrText = res.text.replace(/\n/g, " ");
+                         img.ocrText = res.text;
                       } else {
                          img.ocrText = `API失败: ${res?.error || "未知"}`;
                       }
@@ -410,7 +279,7 @@ els.copyBtn.addEventListener("click", async () => {
                     const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('本地OCR超时')), 20000));
                     
                     const result = await Promise.race([ocrPromise, timeoutPromise]);
-                    img.ocrText = result && result.data && result.data.text ? result.data.text.replace(/\n/g, " ") : "识别为空";
+                    img.ocrText = result && result.data && result.data.text ? result.data.text : "识别为空";
                  }
               } catch(e) {
                  console.error("OCR 失败", e);
@@ -445,12 +314,5 @@ chrome.storage.session.onChanged.addListener((changes) => {
   if (changes.lastExtract && changes.lastExtract.newValue) {
     applyExtractToUI(changes.lastExtract.newValue);
     setStatus("已提取最新内容", "ok");
-  }
-  if (changes.scrollState && changes.scrollState.newValue) {
-    if (els.scrollBtn) {
-      const running = changes.scrollState.newValue.running;
-      els.scrollBtn.textContent = running ? "停止滚动提取" : "开始滚动提取";
-      els.scrollBtn.classList.toggle("danger", running);
-    }
   }
 });
