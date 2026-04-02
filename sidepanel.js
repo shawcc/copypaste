@@ -16,7 +16,7 @@ const els = {
 // --- 特征选择器逻辑 ---
 const FEATURE_DATA = {
   fontColor: [
-    { label: "全", value: "all", color: "#333" },
+    { label: "A", value: "all", color: "#1f2329" },
     { label: "A", value: "gray", color: "#8f959e" },
     { label: "A", value: "red", color: "#d83931" },
     { label: "A", value: "orange", color: "#de7802" },
@@ -26,16 +26,7 @@ const FEATURE_DATA = {
     { label: "A", value: "purple", color: "#6425d0" }
   ],
   bgColor: [
-    { label: "全", value: "all", bg: "transparent" },
-    { label: " ", value: "gray", bg: "#dee0e3" },
-    { label: " ", value: "red", bg: "#f56c6c" },
-    { label: " ", value: "orange", bg: "#ff9900" },
-    { label: " ", value: "yellow", bg: "#ffcc00" },
-    { label: " ", value: "green", bg: "#00b42a" },
-    { label: " ", value: "cyan", bg: "#14c9c9" },
-    { label: " ", value: "blue", bg: "#165dff" },
-    { label: " ", value: "purple", bg: "#722ed1" },
-    { label: " ", value: "pink", bg: "#f5319d" },
+    { label: " ", value: "all", bg: "transparent" },
     // 浅色背景组
     { label: " ", value: "light_gray", bg: "#f2f3f5" },
     { label: " ", value: "light_red", bg: "#ffece8" },
@@ -43,7 +34,15 @@ const FEATURE_DATA = {
     { label: " ", value: "light_yellow", bg: "#ffffcc" },
     { label: " ", value: "light_green", bg: "#e8ffea" },
     { label: " ", value: "light_blue", bg: "#e8f3ff" },
-    { label: " ", value: "light_purple", bg: "#f5e8ff" }
+    { label: " ", value: "light_purple", bg: "#f5e8ff" },
+    // 深色背景组
+    { label: " ", value: "gray", bg: "#dee0e3" },
+    { label: " ", value: "red", bg: "#f56c6c" },
+    { label: " ", value: "orange", bg: "#ff9900" },
+    { label: " ", value: "yellow", bg: "#ffcc00" },
+    { label: " ", value: "green", bg: "#00b42a" },
+    { label: " ", value: "blue", bg: "#165dff" },
+    { label: " ", value: "purple", bg: "#722ed1" }
   ],
   specialStyle: [
     { label: "全选", value: "all" },
@@ -69,12 +68,19 @@ function renderFeatureOptions() {
     if (opt.value === currentFeatureValue) btn.classList.add("active");
     
     btn.textContent = opt.label;
-    if (currentFeatureType === "fontColor" && opt.value !== "all") {
-      btn.style.color = opt.color;
-    }
-    if (currentFeatureType === "bgColor" && opt.value !== "all") {
-      btn.style.backgroundColor = opt.bg;
-    }
+      // 处理复原按钮的特殊样式（带有对角线）
+      if (opt.value === "all") {
+        if (currentFeatureType === "bgColor") {
+          btn.style.background = "linear-gradient(to top right, #fff 48%, #999 48%, #999 52%, #fff 52%)";
+        }
+      } else {
+        if (currentFeatureType === "fontColor") {
+          btn.style.color = opt.color;
+        }
+        if (currentFeatureType === "bgColor") {
+          btn.style.backgroundColor = opt.bg;
+        }
+      }
     
     btn.onclick = () => {
       currentFeatureValue = opt.value;
@@ -146,6 +152,7 @@ function parseRichText(html, text) {
 // 飞书预设颜色常量表 (基于飞书调色板精确映射)
 const FEISHU_COLORS = {
   font: {
+    'rgb(31, 35, 41)': 'all',
     'rgb(143, 149, 158)': 'gray',
     'rgb(216, 57, 49)': 'red',
     'rgb(222, 120, 2)': 'orange',
@@ -155,6 +162,8 @@ const FEISHU_COLORS = {
     'rgb(100, 37, 208)': 'purple'
   },
   bg: {
+    'rgba(0, 0, 0, 0)': 'all',
+    'transparent': 'all',
     // 浅色背景组
     'rgb(242, 243, 245)': 'light_gray',
     'rgb(255, 236, 232)': 'light_red',
@@ -169,10 +178,8 @@ const FEISHU_COLORS = {
     'rgb(255, 153, 0)': 'orange',
     'rgb(255, 204, 0)': 'yellow',
     'rgb(0, 180, 42)': 'green',
-    'rgb(20, 201, 201)': 'cyan',
     'rgb(22, 93, 255)': 'blue',
-    'rgb(114, 46, 209)': 'purple',
-    'rgb(245, 49, 157)': 'pink'
+    'rgb(114, 46, 209)': 'purple'
   }
 };
 
