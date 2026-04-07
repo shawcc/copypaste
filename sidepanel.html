@@ -33,8 +33,20 @@
           <div id="featureOptions" class="feature-options"></div>
         </div>
 
-        <button id="clipboardExtractBtn" class="btn primary">第一步：从剪贴板提取 (推荐)</button>
-        <button id="copyBtn" class="btn primary" disabled>第二步：复制为表格（可粘贴到飞书）</button>
+        <div id="compactModeWrap" class="row" style="margin-bottom: 16px; display: flex; flex-direction: column; gap: 8px;">
+          <label style="font-size: 13px; color: #4b5563; cursor: pointer; display: flex; align-items: center;">
+            <input type="radio" name="ocrMode" value="compact" checked style="margin-right: 4px; cursor: pointer;">
+            智能匹配文档中相似文案
+          </label>
+          <label style="font-size: 13px; color: #4b5563; cursor: pointer; display: flex; align-items: center;">
+            <input type="radio" name="ocrMode" value="full" style="margin-right: 4px; cursor: pointer;">
+            全面提取图中所有文案
+          </label>
+        </div>
+
+        <button id="clipboardExtractBtn" class="btn primary">第一步：从剪贴板提取</button>
+        <button id="copyBtn" class="btn primary" disabled>第二步：复制为飞书表格（不是多维表格，不是飞书电子表格）</button>
+        <button id="cancelOcrBtn" class="btn danger" style="display: none; margin-bottom: 12px;">中止 OCR 识别</button>
         <button id="resetBtn" class="btn danger">重置清空</button>
         <div id="status" class="status"></div>
         
@@ -47,12 +59,11 @@
       </section>
 
       <section class="card">
-        <div class="meta">
-          <div><span class="k">文案</span> <span id="lineCount">0</span></div>
-          <div><span class="k">图片</span> <span id="imageCount">0</span></div>
+        <div class="meta" style="display: flex; justify-content: space-between; margin-bottom: 12px; font-weight: bold; color: #4f46e5; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px;">
+          <span>提取结果预览区</span>
+          <span style="font-size: 12px; font-weight: normal; color: #6b7280;">文案 <span id="lineCount">0</span> · 图片 <span id="imageCount">0</span></span>
         </div>
-        <ol id="preview" class="preview"></ol>
-        <div id="imagePreview" class="image-preview"></div>
+        <div id="groupsPreview" class="groups-preview"></div>
       </section>
     </main>
 

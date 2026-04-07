@@ -206,6 +206,78 @@ body {
   background-color: #f9fafb;
 }
 
+.groups-preview {
+  margin: 0;
+  padding: 0;
+  max-height: 400px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.preview-group {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  position: relative;
+}
+
+.preview-group-img {
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background: #fff;
+  flex-shrink: 0;
+}
+
+.preview-group-content {
+  flex: 1;
+  font-size: 12px;
+  color: #374151;
+  line-height: 1.4;
+  overflow: hidden;
+}
+
+.preview-group-text {
+  margin-bottom: 6px;
+  color: #111827;
+  font-weight: 500;
+}
+
+.preview-group-ocr {
+  color: #6b7280;
+  font-size: 11px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.preview-group-copy {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  padding: 4px 8px;
+  font-size: 11px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+  color: #4b5563;
+  transition: all 0.2s;
+}
+
+.preview-group-copy:hover {
+  background: #f3f4f6;
+  color: #111827;
+}
+
 .quiz-overlay {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;

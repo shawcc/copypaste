@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<body>
+  <h2>Test Copy/Paste for Feishu</h2>
+  <button id="btn1">Copy Base64 Table</button>
+  <button id="btn2">Copy URL Table</button>
+  <button id="btn3">Copy Mixed Table</button>
+
+  <script>
+    // A tiny red dot base64 image
+    const b64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO9TXL0Y4OHwAAAABJRU5ErkJggg==";
+    const url = "https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png";
+
+    function copyToClipboard(html) {
+      const blob = new Blob([html], { type: "text/html" });
+      const item = new ClipboardItem({ "text/html": blob });
+      navigator.clipboard.write([item]).then(() => alert('Copied!'));
+    }
+
+    document.getElementById('btn1').onclick = () => {
+      const html = `<meta charset="utf-8"><table><tr><td>Base64 Image</td><td><img src="${b64}"></td></tr></table>`;
+      copyToClipboard(html);
+    };
+
+    document.getElementById('btn2').onclick = () => {
+      const html = `<meta charset="utf-8"><table><tr><td>URL Image</td><td><img src="${url}"></td></tr></table>`;
+      copyToClipboard(html);
+    };
+
+    document.getElementById('btn3').onclick = () => {
+      // 模拟飞书可能支持的带宽高的 img
+      const html = `<meta charset="utf-8"><table><tr><td>Sized Base64 Image</td><td><img width="100" height="100" src="${b64}"></td></tr></table>`;
+      copyToClipboard(html);
+    };
+  </script>
+</body>
+</html>

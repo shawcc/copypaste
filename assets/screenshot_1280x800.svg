@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 800" width="1280" height="800">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f8fafc" />
+      <stop offset="100%" stop-color="#f1f5f9" />
+    </linearGradient>
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="12" stdDeviation="24" flood-color="#000000" flood-opacity="0.1"/>
+    </filter>
+  </defs>
+  
+  <rect width="1280" height="800" fill="url(#bg)" />
+  
+  <!-- 模拟浏览器窗口 -->
+  <g transform="translate(80, 60)" filter="url(#shadow)">
+    <!-- 窗口边框 -->
+    <rect width="1120" height="680" rx="12" fill="#ffffff" />
+    
+    <!-- 顶部工具栏 -->
+    <path d="M 0 12 Q 0 0 12 0 L 1108 0 Q 1120 0 1120 12 L 1120 48 L 0 48 Z" fill="#e2e8f0" />
+    
+    <!-- Mac风格红黄绿按钮 -->
+    <circle cx="24" cy="24" r="6" fill="#ef4444" />
+    <circle cx="44" cy="24" r="6" fill="#f59e0b" />
+    <circle cx="64" cy="24" r="6" fill="#10b981" />
+    
+    <!-- 地址栏 -->
+    <rect x="96" y="12" width="760" height="24" rx="12" fill="#ffffff" />
+    <text x="120" y="28" font-family="-apple-system, sans-serif" font-size="12" fill="#64748b">https://your-company.feishu.cn/docx/...</text>
+    
+    <!-- 侧边栏按钮 (插件图标) -->
+    <rect x="1070" y="12" width="24" height="24" rx="4" fill="#cbd5e1" />
+    <text x="1082" y="28" font-family="-apple-system, sans-serif" font-size="10" font-weight="bold" fill="#334155" text-anchor="middle">CP</text>
+    
+    <!-- 模拟飞书文档区域 -->
+    <rect x="0" y="48" width="760" height="632" fill="#ffffff" />
+    <rect x="760" y="48" width="1" height="632" fill="#e2e8f0" />
+    
+    <!-- 文档内容 -->
+    <text x="40" y="100" font-family="-apple-system, sans-serif" font-size="28" font-weight="bold" fill="#1e293b">飞书项目 V2.0 需求文档</text>
+    
+    <rect x="40" y="140" width="600" height="8" rx="4" fill="#cbd5e1" />
+    <rect x="40" y="160" width="560" height="8" rx="4" fill="#cbd5e1" />
+    
+    <!-- 模拟选区 (蓝色高亮) -->
+    <rect x="36" y="196" width="680" height="340" rx="8" fill="#eff6ff" stroke="#3b82f6" stroke-width="2" stroke-dasharray="4,4" />
+    
+    <text x="56" y="230" font-family="-apple-system, sans-serif" font-size="16" font-weight="bold" fill="#3b82f6">1. 首页推荐模块交互</text>
+    <rect x="56" y="260" width="400" height="6" rx="3" fill="#94a3b8" />
+    <rect x="56" y="280" width="480" height="6" rx="3" fill="#94a3b8" />
+    
+    <!-- 模拟插入的图片 -->
+    <rect x="56" y="310" width="320" height="180" rx="6" fill="#e2e8f0" />
+    <circle cx="216" cy="380" r="30" fill="#cbd5e1" />
+    <path d="M 200 395 L 216 370 L 232 395 Z" fill="#94a3b8" />
+    
+    <rect x="56" y="510" width="520" height="6" rx="3" fill="#94a3b8" />
+    
+    <!-- 侧边栏 (插件界面) -->
+    <rect x="761" y="48" width="359" height="632" fill="#f8fafc" />
+    <path d="M 761 48 L 1120 48 L 1120 680 L 761 680 Z" fill="#f8fafc" />
+    
+    <text x="780" y="80" font-family="-apple-system, sans-serif" font-size="16" font-weight="bold" fill="#1e293b">文案大师·傅</text>
+    
+    <!-- 提取模式下拉框 -->
+    <rect x="780" y="100" width="320" height="60" rx="8" fill="#ffffff" stroke="#e2e8f0" />
+    <text x="792" y="120" font-family="-apple-system, sans-serif" font-size="12" fill="#64748b">提取模式</text>
+    <rect x="792" y="130" width="296" height="20" rx="4" fill="#f1f5f9" />
+    <text x="800" y="144" font-family="-apple-system, sans-serif" font-size="11" fill="#334155">模式1: 以图找文 (据图OCR匹配文案)</text>
+    
+    <!-- 单选框 -->
+    <circle cx="796" cy="180" r="5" fill="#3b82f6" />
+    <circle cx="796" cy="180" r="2" fill="#ffffff" />
+    <text x="810" y="184" font-family="-apple-system, sans-serif" font-size="12" fill="#475569">智能匹配文档中相似文案</text>
+    
+    <circle cx="796" cy="204" r="5" fill="#cbd5e1" />
+    <text x="810" y="208" font-family="-apple-system, sans-serif" font-size="12" fill="#475569">全面提取图中所有文案</text>
+    
+    <!-- 按钮 -->
+    <rect x="780" y="230" width="320" height="36" rx="8" fill="#3b82f6" />
+    <text x="940" y="252" font-family="-apple-system, sans-serif" font-size="13" font-weight="bold" fill="#ffffff" text-anchor="middle">第一步：从剪贴板提取</text>
+    
+    <rect x="780" y="276" width="320" height="36" rx="8" fill="#cbd5e1" />
+    <text x="940" y="298" font-family="-apple-system, sans-serif" font-size="13" font-weight="bold" fill="#ffffff" text-anchor="middle">第二步：复制为飞书表格</text>
+    
+    <!-- 预览区 -->
+    <rect x="780" y="340" width="320" height="320" rx="8" fill="#ffffff" stroke="#e2e8f0" />
+    <text x="792" y="364" font-family="-apple-system, sans-serif" font-size="13" font-weight="bold" fill="#4f46e5">提取结果预览区</text>
+    <text x="1020" y="364" font-family="-apple-system, sans-serif" font-size="11" fill="#64748b">文案 1 · 图片 1</text>
+    <path d="M 792 376 L 1088 376" stroke="#e2e8f0" stroke-width="1" />
+    
+    <!-- 预览卡片 -->
+    <rect x="792" y="390" width="296" height="80" rx="6" fill="#f8fafc" stroke="#e2e8f0" />
+    <rect x="800" y="398" width="64" height="64" rx="4" fill="#ffffff" stroke="#cbd5e1" />
+    <circle cx="832" cy="426" r="12" fill="#cbd5e1" />
+    <path d="M 826 432 L 832 422 L 838 432 Z" fill="#94a3b8" />
+    
+    <text x="876" y="414" font-family="-apple-system, sans-serif" font-size="11" font-weight="bold" fill="#1e293b">CN: 首页推荐模块交互</text>
+    <text x="876" y="434" font-family="-apple-system, sans-serif" font-size="10" fill="#64748b">OCR: 推荐模块交互...</text>
+    
+    <!-- 复制本组按钮 -->
+    <rect x="1030" y="444" width="50" height="18" rx="4" fill="#ffffff" stroke="#cbd5e1" />
+    <text x="1055" y="456" font-family="-apple-system, sans-serif" font-size="9" fill="#475569" text-anchor="middle">复制本组</text>
+  </g>
+  
+  <!-- 装饰文字 -->
+  <g transform="translate(640, 770)">
+    <text font-family="-apple-system, sans-serif" font-size="24" font-weight="bold" fill="#1e293b" text-anchor="middle">在飞书中框选并一键提取</text>
+  </g>
+</svg>

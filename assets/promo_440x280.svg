@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 280" width="440" height="280">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#eef2ff" />
+      <stop offset="100%" stop-color="#e0e7ff" />
+    </linearGradient>
+    <linearGradient id="icon-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4f46e5" />
+      <stop offset="100%" stop-color="#3b82f6" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#4f46e5" flood-opacity="0.15"/>
+    </filter>
+    <filter id="text-shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#000000" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+  <rect width="440" height="280" fill="url(#bg)" />
+  
+  <!-- 装饰性背景元素 -->
+  <circle cx="380" cy="40" r="120" fill="#4f46e5" opacity="0.05" />
+  <circle cx="60" cy="240" r="80" fill="#3b82f6" opacity="0.05" />
+  
+  <g transform="translate(176, 50)" filter="url(#shadow)">
+    <rect width="88" height="88" rx="20" fill="url(#icon-bg)" />
+    <text x="44" y="60" font-family="-apple-system, system-ui, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="44" font-weight="800" fill="#ffffff" text-anchor="middle" dominant-baseline="middle" letter-spacing="-1.5" filter="url(#text-shadow)">CP</text>
+  </g>
+  
+  <text x="220" y="180" font-family="-apple-system, system-ui, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', sans-serif" font-size="32" font-weight="700" fill="#1f2937" text-anchor="middle">文案大师·傅</text>
+  
+  <text x="220" y="216" font-family="-apple-system, system-ui, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', sans-serif" font-size="16" font-weight="500" fill="#4b5563" text-anchor="middle">一键提取飞书图文 · 智能生成标准表格</text>
+</svg>

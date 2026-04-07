@@ -3,14 +3,16 @@ const els = {
   featureType: document.getElementById("featureType"),
   featureOptions: document.getElementById("featureOptions"),
   featureFilter: document.getElementById("featureFilter"),
+  compactModeWrap: document.getElementById("compactModeWrap"),
+  ocrModeRadios: document.querySelectorAll('input[name="ocrMode"]'),
   clipboardExtractBtn: document.getElementById("clipboardExtractBtn"),
   copyBtn: document.getElementById("copyBtn"),
+  cancelOcrBtn: document.getElementById("cancelOcrBtn"),
   resetBtn: document.getElementById("resetBtn"),
   status: document.getElementById("status"),
   lineCount: document.getElementById("lineCount"),
   imageCount: document.getElementById("imageCount"),
-  preview: document.getElementById("preview"),
-  imagePreview: document.getElementById("imagePreview"),
+  groupsPreview: document.getElementById("groupsPreview"),
   quizOverlay: document.getElementById("quizOverlay"),
   quizTitle: document.getElementById("quizTitle"),
   quizDesc: document.getElementById("quizDesc"),
@@ -412,21 +414,6 @@ async function getActiveTab() {
 
 
 
-function setPreview(lines) {
-  els.preview.replaceChildren();
-  const show = (lines || []).slice(0, 8);
-  for (const line of show) {
-    const li = document.createElement("li");
-    li.textContent = line;
-    els.preview.appendChild(li);
-  }
-  if ((lines || []).length > show.length) {
-    const li = document.createElement("li");
-    li.textContent = `… 还有 ${lines.length - show.length} 条`;
-    els.preview.appendChild(li);
-  }
-}
-
 function storageSyncGet(defaults) {
   return new Promise((resolve, reject) => {
     chrome.storage.sync.get(defaults, (items) => {
@@ -447,8 +434,14 @@ function storageSyncSet(items) {
   });
 }
 
+function getCompactValue() {
+  const selected = document.querySelector('input[name="ocrMode"]:checked');
+  return selected ? selected.value === "compact" : true;
+}
+
 function buildRows(extract) {
   const mode = els.modeSelect ? els.modeSelect.value : "image_first";
+  const compact = getCompactValue();
   
   let displayLines = [];
   if (mode === "text_first") {
@@ -463,15 +456,50 @@ function buildRows(extract) {
     displayLines = globalThis.CopyPasteExporter.guessUiLines ? globalThis.CopyPasteExporter.guessUiLines(rawLines) : rawLines;
   }
   
-  return globalThis.CopyPasteExporter.rowsFromExtract(extract || {}, mode, displayLines);
+  return globalThis.CopyPasteExporter.rowsFromExtract(extract || {}, mode, displayLines, compact);
 }
 
-async function copyAsTable(extract) {
+async function copyGroupAsTable(groupRows, format = "doc") {
+  for (const r of groupRows) {
+    if (r.images) {
+      for (const img of r.images) {
+        if (!img.base64 && typeof img !== 'string' && img.src) {
+          try {
+            const fetchRes = await chrome.runtime.sendMessage({ type: "CP_FETCH_IMAGE", url: img.src });
+            if (fetchRes && fetchRes.ok && fetchRes.dataUrl) {
+              img.base64 = fetchRes.dataUrl;
+            }
+          } catch(e) {}
+        }
+      }
+    }
+  }
+
+  const { languages } = await storageSyncGet({ languages: ["en-US"] });
+  const langs = Array.isArray(languages) ? languages.filter(Boolean) : ["en-US"];
+  const html = globalThis.CopyPasteExporter.htmlTableFromRows(groupRows, langs, format);
+  const tsv = globalThis.CopyPasteExporter.tsvFromRows(groupRows, langs);
+
+  if (globalThis.ClipboardItem) {
+    await navigator.clipboard.write([
+      new ClipboardItem({
+        "text/html": new Blob([html], { type: "text/html" }),
+        "text/plain": new Blob([tsv], { type: "text/plain" })
+      })
+    ]);
+    return { rows: groupRows.length, languages: langs };
+  }
+
+  await navigator.clipboard.writeText(tsv);
+  return { rows: groupRows.length, languages: langs };
+}
+
+async function copyAsTable(extract, format = "doc") {
   const { languages } = await storageSyncGet({ languages: ["en-US"] });
   const langs = Array.isArray(languages) ? languages.filter(Boolean) : ["en-US"];
   // 总是重新 build rows，这里直接调用 rowsFromExtract，将使用基于 OCR 的智能匹配
   const rows = buildRows(extract);
-  const html = globalThis.CopyPasteExporter.htmlTableFromRows(rows, langs);
+  const html = globalThis.CopyPasteExporter.htmlTableFromRows(rows, langs, format);
   const tsv = globalThis.CopyPasteExporter.tsvFromRows(rows, langs);
 
   if (globalThis.ClipboardItem) {
@@ -490,7 +518,7 @@ async function copyAsTable(extract) {
 
 async function loadLastExtract() {
   return new Promise((resolve, reject) => {
-    chrome.storage.session.get({ lastExtract: null }, (items) => {
+    chrome.storage.local.get({ lastExtract: null }, (items) => {
       const err = chrome.runtime.lastError;
       if (err) reject(new Error(err.message));
       else resolve(items.lastExtract || null);
@@ -500,7 +528,7 @@ async function loadLastExtract() {
 
 async function saveLastExtract(extract) {
   return new Promise((resolve, reject) => {
-    chrome.storage.session.set({ lastExtract: extract }, () => {
+    chrome.storage.local.set({ lastExtract: extract }, () => {
       const err = chrome.runtime.lastError;
       if (err) reject(new Error(err.message));
       else resolve();
@@ -513,6 +541,14 @@ let globalExtract = null;
 function applyExtractToUI(extract, modeOverride) {
   globalExtract = extract;
   const mode = modeOverride || (els.modeSelect ? els.modeSelect.value : "image_first");
+  
+  if (!extract) {
+    els.lineCount.textContent = "0";
+    els.imageCount.textContent = "0";
+    if (els.groupsPreview) els.groupsPreview.replaceChildren();
+    els.copyBtn.disabled = true;
+    return;
+  }
   
   let displayLines = [];
   if (mode === "text_first") {
@@ -530,19 +566,90 @@ function applyExtractToUI(extract, modeOverride) {
   const images = Array.isArray(extract?.images) ? extract.images : [];
   els.lineCount.textContent = String(displayLines.length);
   els.imageCount.textContent = String(images.length);
-  setPreview(displayLines);
   
-  // 渲染图片预览
-  if (els.imagePreview) {
-    els.imagePreview.replaceChildren();
-    for (const img of images) {
-      const src = typeof img === 'string' ? img : img.src;
-      if (!src) continue;
-      const el = document.createElement('img');
-      el.src = src;
-      el.title = typeof img === 'string' ? '' : (img.alt || '');
-      els.imagePreview.appendChild(el);
+  // 渲染图文分组预览
+  if (els.groupsPreview) {
+    els.groupsPreview.replaceChildren();
+    const rows = buildRows(extract);
+    
+    // 我们需要把 rows 按图片分组，或者按提取顺序渲染
+    // 在 text_first 下，每一行可能有一个 images 数组（长度0或1）
+    // 在 image_first 下，属于同一张图的 rows 是连续的，其中只有第一个 row 有 images 数组
+    
+    let currentGroup = [];
+    let currentImg = null;
+    let groups = [];
+    
+    for (const r of rows) {
+      if (r.images && r.images.length > 0) {
+        if (currentGroup.length > 0) {
+          groups.push({ img: currentImg, rows: currentGroup });
+        }
+        currentImg = r.images[0];
+        currentGroup = [r];
+      } else {
+        // 没有图片时，可能是属于上一张图，也可能是纯文本匹配
+        if (mode === "image_first" && currentImg) {
+          currentGroup.push(r);
+        } else {
+          // 如果没有当前图，自己成一组
+          groups.push({ img: null, rows: [r] });
+        }
+      }
     }
+    if (currentGroup.length > 0) {
+      groups.push({ img: currentImg, rows: currentGroup });
+    }
+
+    groups.forEach((g, index) => {
+      const groupEl = document.createElement("div");
+      groupEl.className = "preview-group";
+      
+      if (g.img) {
+        const imgEl = document.createElement("img");
+        imgEl.className = "preview-group-img";
+        imgEl.src = typeof g.img === 'string' ? g.img : (g.img.base64 || g.img.src);
+        groupEl.appendChild(imgEl);
+      }
+      
+      const contentEl = document.createElement("div");
+      contentEl.className = "preview-group-content";
+      
+      g.rows.forEach(r => {
+        if (r.text) {
+          const textEl = document.createElement("div");
+          textEl.className = "preview-group-text";
+          textEl.textContent = "CN: " + r.text;
+          contentEl.appendChild(textEl);
+        }
+        if (r.ocrText) {
+          const ocrEl = document.createElement("div");
+          ocrEl.className = "preview-group-ocr";
+          ocrEl.textContent = "OCR: " + r.ocrText;
+          contentEl.appendChild(ocrEl);
+        }
+      });
+      
+      groupEl.appendChild(contentEl);
+      
+      const copyBtn = document.createElement("button");
+      copyBtn.className = "preview-group-copy";
+      copyBtn.textContent = "复制本组";
+      copyBtn.onclick = async () => {
+        const oldText = copyBtn.textContent;
+        copyBtn.textContent = "复制中...";
+        try {
+          await copyGroupAsTable(g.rows, "doc");
+          copyBtn.textContent = "成功";
+        } catch (e) {
+          copyBtn.textContent = "失败";
+        }
+        setTimeout(() => { copyBtn.textContent = oldText; }, 2000);
+      };
+      
+      groupEl.appendChild(copyBtn);
+      els.groupsPreview.appendChild(groupEl);
+    });
   }
 
   els.copyBtn.disabled = displayLines.length === 0 && images.length === 0;
@@ -554,12 +661,23 @@ async function init() {
     // wait for quiz to pass, though other parts of UI can initialize
   }
 
-  const { mode } = await storageSyncGet({ mode: "image_first" });
+  const { mode, compact } = await storageSyncGet({ mode: "image_first", compact: true });
   if (els.modeSelect) {
     els.modeSelect.value = mode || "image_first";
     if (els.featureFilter) {
       els.featureFilter.style.display = (mode === "text_first") ? "block" : "none";
     }
+    if (els.compactModeWrap) {
+      els.compactModeWrap.style.display = (mode === "image_first") ? "flex" : "none";
+    }
+  }
+  if (els.ocrModeRadios && els.ocrModeRadios.length > 0) {
+    const targetValue = compact ? "compact" : "full";
+    els.ocrModeRadios.forEach(r => {
+      if (r.value === targetValue) {
+        r.checked = true;
+      }
+    });
   }
   
   const last = await loadLastExtract();
@@ -574,10 +692,23 @@ els.modeSelect?.addEventListener("change", async () => {
   if (els.featureFilter) {
     els.featureFilter.style.display = mode === "text_first" ? "block" : "none";
   }
+  if (els.compactModeWrap) {
+    els.compactModeWrap.style.display = mode === "image_first" ? "flex" : "none";
+  }
   await storageSyncSet({ mode });
   if (globalExtract) {
     applyExtractToUI(globalExtract, mode);
   }
+});
+
+els.ocrModeRadios?.forEach(radio => {
+  radio.addEventListener("change", async () => {
+    const compact = getCompactValue();
+    await storageSyncSet({ compact });
+    if (globalExtract) {
+      applyExtractToUI(globalExtract, els.modeSelect.value);
+    }
+  });
 });
 
 // Remove unused functions
@@ -622,7 +753,10 @@ els.clipboardExtractBtn?.addEventListener("click", async () => {
     }
 
     applyExtractToUI(res.data);
-    setStatus("剪贴板提取成功！", "ok");
+    setStatus("剪贴板提取成功！后台正在进行OCR识别...", "ok");
+    
+    // 开始后台异步 OCR
+    runBackgroundOCR(res.data);
   } catch (e) {
     setStatus(String(e && e.message ? e.message : e), "error");
   } finally {
@@ -632,94 +766,167 @@ els.clipboardExtractBtn?.addEventListener("click", async () => {
 
 
 
-els.copyBtn.addEventListener("click", async () => {
-  setStatus("复制中… (如果包含 OCR 可能需要几秒钟)");
-  els.copyBtn.disabled = true;
+let isOcrRunning = false;
+let isOcrCancelled = false;
+
+els.cancelOcrBtn.addEventListener("click", () => {
+  isOcrCancelled = true;
+  setStatus("正在中止后台 OCR...", "error");
+});
+
+// 将大图压缩以加快大模型 OCR 的传输和识别速度
+async function compressImageForOCR(base64Str, maxSize = 1500) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      let width = img.width;
+      let height = img.height;
+      if (width <= maxSize && height <= maxSize) {
+        // 如果尺寸不大，也转成 0.8 质量的 JPEG，抹除透明背景，减小体积
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', 0.8));
+        return;
+      }
+      // 等比例缩放
+      if (width > height) {
+        height = Math.round(height * (maxSize / width));
+        width = maxSize;
+      } else {
+        width = Math.round(width * (maxSize / height));
+        height = maxSize;
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, width, height);
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL('image/jpeg', 0.8));
+    };
+    img.onerror = () => resolve(base64Str); // 失败则原样返回
+    img.src = base64Str;
+  });
+}
+
+// 异步执行 OCR，不阻塞用户操作
+async function runBackgroundOCR(extract) {
+  if (isOcrRunning || !extract || !extract.images || extract.images.length === 0) return;
+  isOcrRunning = true;
+  isOcrCancelled = false;
+  
+  els.cancelOcrBtn.style.display = "inline-block";
+  els.cancelOcrBtn.disabled = false;
+  
+  const apiUrl = "https://copypaste-tau.vercel.app/api/ocr";
+  
+  try {
+    // 检查是否有未识别的图片
+    let hasPending = false;
+    for (let i = 0; i < extract.images.length; i++) {
+      if (!extract.images[i].ocrText || extract.images[i].ocrText === "等待OCR...") {
+        hasPending = true; break;
+      }
+    }
+    if (!hasPending) {
+      isOcrRunning = false;
+      els.cancelOcrBtn.style.display = "none";
+      return;
+    }
+
+    for (let i = 0; i < extract.images.length; i++) {
+      if (isOcrCancelled) break;
+      const img = extract.images[i];
+      
+      if (!img.ocrText || img.ocrText === "等待OCR...") {
+         setStatus(`正在后台识别图片 ${i + 1} / ${extract.images.length} ... (此时随时可点击第二步复制)`, "normal");
+         
+         // 转 Base64
+         if (!img.base64 && typeof img !== 'string' && img.src) {
+            try {
+              const fetchRes = await chrome.runtime.sendMessage({ type: "CP_FETCH_IMAGE", url: img.src });
+              if (fetchRes && fetchRes.ok && fetchRes.dataUrl) img.base64 = fetchRes.dataUrl;
+            } catch(e) {}
+         }
+         
+         if (!img.base64) {
+            img.ocrText = "无图片数据";
+         } else {
+            try {
+              const compressedBase64 = await compressImageForOCR(img.base64, 1500);
+              const res = await chrome.runtime.sendMessage({
+                type: "CP_OCR_LLM",
+                payload: { base64Image: compressedBase64, apiUrl, apiModel: "", apiKey: "" }
+              });
+              if (isOcrCancelled) break;
+              
+              if (res && res.ok && res.text) img.ocrText = res.text;
+              else img.ocrText = `API失败: ${res?.error || "未知"}`;
+            } catch(e) {
+              if (isOcrCancelled) break;
+              img.ocrText = "API请求异常";
+            }
+         }
+         
+         // 识别完单张后，更新 UI 和 缓存
+         if (!isOcrCancelled) {
+           applyExtractToUI(extract, els.modeSelect.value);
+           await saveLastExtract(extract);
+         }
+      }
+    }
+    if (!isOcrCancelled) setStatus("所有图片 OCR 识别完成！", "ok");
+    else setStatus("已中止后台 OCR 识别。", "error");
+  } catch (e) {
+    setStatus(String(e && e.message ? e.message : e), "error");
+  } finally {
+    isOcrRunning = false;
+    els.cancelOcrBtn.style.display = "none";
+  }
+}
+
+async function processCopy(format) {
+  setStatus("复制中…");
+  
+  if (format === "doc") {
+    els.copyBtn.disabled = true;
+  }
+
   try {
     const extract = globalExtract || await loadLastExtract();
     if (!extract) throw new Error("没有可复制的数据，请先提取选中内容");
 
-      // 提前把所有提取出来的图片转为 Base64（不管需不需要 OCR），以保证复制出来的都是安全格式
-      setStatus("正在预处理图片格式，请稍候...");
-      for (const img of extract.images) {
-        if (!img.base64 && typeof img !== 'string' && img.src) {
-           try {
-             const fetchRes = await chrome.runtime.sendMessage({ type: "CP_FETCH_IMAGE", url: img.src });
-             if (fetchRes && fetchRes.ok && fetchRes.dataUrl) {
-               img.base64 = fetchRes.dataUrl;
-             }
-           } catch(e) {
-             console.log("获取 base64 失败", e);
+    // 复制前如果有没有转 base64 的，尽量转一下以防复制出去变成破图
+    for (const img of extract.images) {
+      if (!img.base64 && typeof img !== 'string' && img.src) {
+         try {
+           const fetchRes = await chrome.runtime.sendMessage({ type: "CP_FETCH_IMAGE", url: img.src });
+           if (fetchRes && fetchRes.ok && fetchRes.dataUrl) {
+             img.base64 = fetchRes.dataUrl;
            }
-        }
+         } catch(e) {}
       }
+    }
 
-      // 总是使用部署在 Vercel 上的安全代理接口
-      const apiUrl = "https://copypaste-tau.vercel.app/api/ocr";
-      const apiModel = ""; 
-      const apiKey = ""; 
-      
-      const hasLlmConfig = true;
-
-      // 如果启用了 OCR，我们在复制前把图片送去识别
-      if ((hasLlmConfig || typeof Tesseract !== 'undefined') && extract.images && extract.images.length > 0) {
-        for (let i = 0; i < extract.images.length; i++) {
-           const img = extract.images[i];
-           if (!img.ocrText || img.ocrText === "等待OCR...") {
-              setStatus(`正在用大模型识别图片 ${i + 1} / ${extract.images.length} ...`, "normal");
-              try {
-                 const fetchRes = { ok: true, dataUrl: img.base64 };
-                 if (!fetchRes.dataUrl) {
-                    img.ocrText = "无图片数据";
-                    continue;
-                 }
-                 
-                 if (hasLlmConfig) {
-                    // 走高级大模型接口
-                    try {
-                      const res = await chrome.runtime.sendMessage({
-                        type: "CP_OCR_LLM",
-                        payload: {
-                          base64Image: fetchRes.dataUrl,
-                          apiUrl: apiUrl,
-                          apiModel: apiModel,
-                          apiKey: apiKey
-                        }
-                      });
-                      if (res && res.ok && res.text) {
-                         img.ocrText = res.text;
-                      } else {
-                         img.ocrText = `API失败: ${res?.error || "未知"}`;
-                      }
-                    } catch(apiErr) {
-                      img.ocrText = "API请求异常";
-                    }
-                 } else {
-                    // 走本地 Tesseract 兜底
-                    const ocrPromise = Tesseract.recognize(fetchRes.dataUrl, 'chi_sim+eng');
-                    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('本地OCR超时')), 20000));
-                    
-                    const result = await Promise.race([ocrPromise, timeoutPromise]);
-                    img.ocrText = result && result.data && result.data.text ? result.data.text : "识别为空";
-                 }
-              } catch(e) {
-                 console.error("OCR 失败", e);
-                 img.ocrText = typeof e.message === 'string' ? `失败: ${e.message.substring(0,10)}` : "OCR出错";
-              }
-           }
-        }
-      }
-
-    const res = await copyAsTable(extract);
-    setStatus(`已复制：${res.rows} 条，请直接去飞书粘贴`, "ok");
+    const res = await copyAsTable(extract, format);
+    setStatus(`已复制：${res.rows} 条，${format === 'doc' ? '请直接去飞书粘贴' : '适合粘贴至电子表格'}`, "ok");
   } catch (e) {
     setStatus(String(e && e.message ? e.message : e), "error");
   } finally {
-    els.copyBtn.disabled = false;
+    if (format === "doc") els.copyBtn.disabled = false;
   }
-});
+}
+
+els.copyBtn.addEventListener("click", () => processCopy("doc"));
 
 els.resetBtn?.addEventListener("click", async () => {
+  isOcrCancelled = true;
   try {
     await saveLastExtract(null);
     applyExtractToUI(null);
@@ -731,7 +938,7 @@ els.resetBtn?.addEventListener("click", async () => {
 
 init();
 
-chrome.storage.session.onChanged.addListener((changes) => {
+chrome.storage.local.onChanged.addListener((changes) => {
   if (changes.lastExtract && changes.lastExtract.newValue) {
     applyExtractToUI(changes.lastExtract.newValue);
     setStatus("已提取最新内容", "ok");

@@ -32,8 +32,8 @@ export default async function handler(req, res) {
 
     // 优先使用请求里带的私有配置，如果没传，则使用 Vercel 环境变量里的兜底配置
     const apiUrl = customApiUrl || process.env.VOLC_API_URL || 'https://ark.cn-beijing.volces.com/api/v3/chat/completions';
-    const apiModel = customApiModel || process.env.VOLC_API_MODEL; 
-    const apiKey = customApiKey || process.env.VOLC_API_KEY;
+    const apiModel = customApiModel || process.env.VOLC_API_MODEL || 'ep-20241014092244-67v8l'; // 填入你自己的默认大模型接入点
+    const apiKey = customApiKey || process.env.VOLC_API_KEY || 'b84dfd04-4362-42da-9fce-a6db4d682490'; // 填入你的 API KEY
 
     if (!apiModel || !apiKey) {
       return res.status(500).json({ error: 'Server configuration missing' });

@@ -75,7 +75,7 @@ async function extractToSession(tabId) {
   if (!res || !res.ok) throw new Error(res?.error || "提取失败");
 
   await new Promise((resolve, reject) => {
-    chrome.storage.session.set({ lastExtract: res }, () => {
+    chrome.storage.local.set({ lastExtract: res }, () => {
       const err = chrome.runtime.lastError;
       if (err) reject(new Error(err.message));
       else resolve();
@@ -88,14 +88,14 @@ async function extractToSession(tabId) {
 
 async function startScrollToSession(tabId) {
   await injectThenSend(tabId, { type: "CP_SCROLL_EXTRACT_START" });
-  chrome.storage.session.set({ scrollState: { running: true } });
+  chrome.storage.local.set({ scrollState: { running: true } });
   chrome.action.setBadgeText({ tabId, text: "RUN" });
   chrome.action.setBadgeBackgroundColor({ tabId, color: "#2563eb" });
 }
 
 async function stopScroll(tabId) {
   await injectThenSend(tabId, { type: "CP_SCROLL_EXTRACT_STOP" });
-  chrome.storage.session.set({ scrollState: { running: false } });
+  chrome.storage.local.set({ scrollState: { running: false } });
   chrome.action.setBadgeText({ tabId, text: "" });
 }
 
@@ -173,14 +173,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
 
   if (msg.type === "CP_SCROLL_EXTRACT_UPDATE") {
-    chrome.storage.session.set(
+    chrome.storage.local.set(
       { lastExtract: msg.payload, scrollState: msg.state },
       () => sendResponse({ ok: true })
     );
     return true;
   }
   if (msg.type === "CP_SCROLL_EXTRACT_DONE") {
-    chrome.storage.session.set(
+    chrome.storage.local.set(
       { lastExtract: msg.payload, scrollState: { running: false } },
       () => sendResponse({ ok: true })
     );
@@ -199,8 +199,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === "CP_FETCH_IMAGE") {
     // 飞书图片的 URL 可能有重定向或鉴权，这里直接加上 fetch 的凭证并忽略 cors 报错
     fetch(msg.url, { credentials: 'omit', mode: 'no-cors' })
-      .then(res => res.blob())
+      .then(res => {
+        return res.blob();
+      })
       .then(blob => {
+        if (blob.size === 0) throw new Error("Empty image blob");
         const reader = new FileReader();
         reader.onloadend = () => {
           sendResponse({ ok: true, dataUrl: reader.result });
@@ -214,10 +217,18 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
 
   if (msg.type === "CP_OCR_LLM") {
-    handleLLMOCR(msg.payload).then(res => {
-      sendResponse({ ok: true, text: res });
-    }).catch(err => {
-      sendResponse({ ok: false, error: err.message });
+    // 去 storage 里读一下原来保存的自定义配置，如果有就传过去，没有就是 undefined
+    chrome.storage.local.get({ apiUrl: "", apiModel: "", apiKey: "" }, (items) => {
+      handleLLMOCR({
+        base64Image: msg.payload.base64Image,
+        apiUrl: msg.payload.apiUrl || items.apiUrl || "https://copypaste-tau.vercel.app/api/ocr",
+        apiModel: msg.payload.apiModel || items.apiModel,
+        apiKey: msg.payload.apiKey || items.apiKey
+      }).then(res => {
+        sendResponse({ ok: true, text: res });
+      }).catch(err => {
+        sendResponse({ ok: false, error: err.message });
+      });
     });
     return true;
   }
@@ -246,6 +257,12 @@ async function handleLLMOCR({ base64Image, apiUrl, apiModel, apiKey }) {
 
     if (!response.ok) {
       const errText = await response.text();
+      // 增强容错，如果后端代理挂了，把错误信息透传出去
+      if (response.status >= 400 && response.status < 500) {
+        throw new Error(`Upstream API Error 400: ${errText}`);
+      } else if (response.status >= 500) {
+        throw new Error(`Upstream API Error 500: ${errText}`);
+      }
       throw new Error(`API Error ${response.status}: ${errText}`);
     }
 
@@ -328,6 +345,14 @@ async function handleClipboardExtract({ html, text, mode, richLines }) {
       // 飞书有时在 src 里放占位符
       if (src.includes('base64,PHN2Zy')) continue; 
       
+      // 如果 src 是相对路径，拼上当前网页的 origin
+      if (src.startsWith('/')) {
+        try {
+          const fakeOrigin = "https://feishu.cn"; // 或者从某个地方获取真正的 origin
+          src = new URL(src, fakeOrigin).href;
+        } catch(e) {}
+      }
+      
       // 去重：飞书剪贴板有时会带相同的 token 但参数略微不同的 URL，通过提取核心 token 来去重
       let dedupeKey = src;
       try {
@@ -361,8 +386,8 @@ async function handleClipboardExtract({ html, text, mode, richLines }) {
     images
   };
 
-  // 模拟之前的内容合并逻辑，把它存入 session
-  const stored = await chrome.storage.session.get("lastExtract");
+  // 模拟之前的内容合并逻辑，把它存入 local storage
+  const stored = await chrome.storage.local.get("lastExtract");
   let merged = stored.lastExtract || { lines: [], uiLines: [], images: [], richLines: [] };
   
   merged.lines = merged.lines.concat(lines);
@@ -370,7 +395,7 @@ async function handleClipboardExtract({ html, text, mode, richLines }) {
   merged.images = merged.images.concat(images);
   merged.richLines = (merged.richLines || []).concat(richLines || []);
 
-  await chrome.storage.session.set({ lastExtract: merged });
+  await chrome.storage.local.set({ lastExtract: merged });
 
   return merged;
 }

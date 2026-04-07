@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "文案大师·傅",
-  "version": "0.1.0",
+  "version": "0.1.3",
   "description": "从飞书文档 PRD 中提取选区文案与配图，并生成可粘贴到飞书的表格。",
   "action": {
     "default_title": "文案大师·傅",
@@ -13,7 +13,7 @@
   "side_panel": {
     "default_path": "sidepanel.html"
   },
-  "permissions": ["activeTab", "scripting", "storage", "clipboardWrite", "clipboardRead", "contextMenus", "sidePanel", "webRequest"],
+  "permissions": ["activeTab", "scripting", "storage", "unlimitedStorage", "clipboardWrite", "clipboardRead", "contextMenus", "sidePanel", "webRequest"],
   "host_permissions": [
     "*://*.feishu.cn/*",
     "*://*.larksuite.com/*",
